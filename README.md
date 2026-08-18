@@ -1,4 +1,4 @@
-# Captain Mode — Dota 2 Draft Simulator
+# Captain Mode — Dota 2 Draft Simulator - Open Source
 
 Simulasi Captain's Mode draft Dota 2 secara **online realtime** untuk 2 pihak (captain) + spectator, **tanpa login** — cukup share kode lobby 6 karakter.
 

@@ -534,7 +534,7 @@ onUnmounted(() => {
 
 .draft-timeline { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 2px; }
 .tl-row { display: grid; grid-template-columns: 1fr 56px 1fr; gap: 4px; align-items: stretch; }
-.tl-cell { position: relative; height: 40px; border-radius: 5px; overflow: hidden;
+.tl-cell { position: relative; height: 52px; border-radius: 5px; overflow: hidden;
   background: rgba(0, 0, 0, .32); border: 1px dashed rgba(255, 255, 255, .12);
   display: flex; align-items: center; justify-content: center; }
 .tl-cell.empty { background: rgba(0, 0, 0, .12); border-style: dashed; }

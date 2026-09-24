@@ -97,7 +97,7 @@ async def create_lobby(body: CreateBody) -> dict:
 
 @app.post("/api/lobby/join")
 async def join_lobby(code: str, body: JoinBody) -> dict:
-    lobby = manager.get(code)
+    lobby = await manager.get_or_rehydrate(code)
     if not lobby:
         return {"error": "Lobby tidak ditemukan"}
     seat = lobby.join(body.name.strip() or "Spectator", body.seat_id)
@@ -107,8 +107,8 @@ async def join_lobby(code: str, body: JoinBody) -> dict:
 
 
 @app.get("/api/lobby/state")
-def lobby_state(code: str) -> dict:
-    lobby = manager.get(code)
+async def lobby_state(code: str) -> dict:
+    lobby = await manager.get_or_rehydrate(code)
     if not lobby:
         return {"error": "Lobby tidak ditemukan"}
     return manager.room_state(lobby)
@@ -200,7 +200,7 @@ async def history_detail(code: str) -> dict:
 
 @app.websocket("/ws/{code}/{seat_id}")
 async def ws_room(ws: WebSocket, code: str, seat_id: int):
-    lobby = manager.get(code)
+    lobby = await manager.get_or_rehydrate(code)
     if not lobby:
         await ws.close(code=4404, reason="Lobby not found")
         return
@@ -247,4 +247,4 @@ async def ws_room(ws: WebSocket, code: str, seat_id: int):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=9002)
+    uvicorn.run(app, host="0.0.0.0", port=9003)

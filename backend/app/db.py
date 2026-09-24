@@ -75,7 +75,8 @@ async def persist_lobby(code: str, host_name: str, host_color: int,
                 """INSERT INTO lobbies (code, host_name, host_color, status, captain0, captain1, lobby_name, turn_ms, reserve_ms, created_at)
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
                    ON CONFLICT (code) DO UPDATE SET
-                    status = EXCLUDED.status,
+                    status = CASE WHEN lobbies.status IN ('running','finished')
+                                  THEN lobbies.status ELSE EXCLUDED.status END,
                     captain0 = COALESCE(EXCLUDED.captain0, lobbies.captain0),
                     captain1 = COALESCE(EXCLUDED.captain1, lobbies.captain1),
                     lobby_name = EXCLUDED.lobby_name,

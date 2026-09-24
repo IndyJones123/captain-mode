@@ -408,6 +408,66 @@ class LobbyManager:
     def get(self, code: str) -> Lobby | None:
         return self._lobbies.get(code)
 
+    async def get_or_rehydrate(self, code: str) -> Lobby | None:
+        """Return the live lobby, or reconstruct a FINISHED lobby from the DB.
+
+        Lobbies are in-memory; a backend restart drops them even though the DB
+        row + moves survive. For finished drafts this rebuilds a read-only lobby
+        so the history "Masuk Lobby" flow (join -> state -> WS) still works.
+        """
+        if code in self._lobbies:
+            return self._lobbies[code]
+        lobby = await self._rehydrate_finished(code)
+        if lobby is not None:
+            self._lobbies[code] = lobby
+        return lobby
+
+    async def _rehydrate_finished(self, code: str) -> Lobby | None:
+        from . import db
+        try:
+            row = await db.get_history_detail(code)
+        except Exception:
+            return None
+        if not row or row.get("status") != "finished":
+            return None
+
+        c0 = row.get("captain0")
+        c1 = row.get("captain1")
+        lobby = Lobby(
+            code,
+            row.get("host_name") or "",
+            row.get("host_color") or 0,
+            row.get("lobby_name") or "",
+            row.get("turn_ms") or 10_000,
+            row.get("reserve_ms") or 60_000,
+        )
+        lobby._auto_cb = self._auto_fire
+        lobby._rng = lambda: self._random.randrange(1_000_000)
+
+        # Persisted captain0/captain1 = Radiant/Dire (UI columns). Rebuild the
+        # two captain seats + sides so join() can reclaim by name and the room
+        # state renders. coin.first_pick stays None -> engine 0 shown as Radiant.
+        if c0:
+            lobby.captains[0] = {"seat_id": 1, "name": c0, "team": 0, "color": lobby.host_color}
+            lobby.sides[0] = {"seat_id": 1, "name": c0, "team": 0}
+        if c1:
+            lobby.captains[1] = {"seat_id": 2, "name": c1, "team": 1, "color": 255 - lobby.host_color}
+            lobby.sides[1] = {"seat_id": 2, "name": c1, "team": 1}
+        lobby._seat_counter = 3
+        lobby.coin["phase"] = "done"
+
+        # Replay the persisted moves in order (moves are stored by ENGINE team,
+        # matching the TURNS order, so apply() advances cleanly).
+        lobby.draft.start()
+        for m in row.get("moves", []):
+            if lobby.draft.finished:
+                break
+            lobby.draft.apply(m["team"], m["phase"], m["hero_id"])
+        if not lobby.draft.finished:
+            lobby.draft.finished = True
+            lobby.draft.phase = "done"
+        return lobby
+
     def remove(self, code: str) -> None:
         lobby = self._lobbies.pop(code, None)
         if lobby:
